@@ -98,8 +98,32 @@ object JsonProtocol extends BasicJsonProtocol {
   // Algorithms
   // ---------------------------------------------------------------------------
   given Decoder[Algorithm] = deriveDecoder
-  given Encoder[Algorithm] =
-    encoderWithType[Algorithm](using deriveEncoder[Algorithm])
+  given Encoder[Algorithm] = new Encoder[Algorithm] {
+    final def apply(algo: Algorithm): Json =
+      Json.obj(
+        "Algorithm" -> Json.obj(
+          "head" -> algo.head.asJson,
+          "body" -> algo.body.asJson,
+          "code" -> algo.code.asJson,
+          "sections" -> Option(algo.elem.parent)
+            .map(getSectionIds)
+            .getOrElse(List.empty[String])
+            .asJson, // extract parent sections ids
+        ),
+      )
+  }
+
+  import org.jsoup.nodes.Element
+  private def getSectionIds(elem: Element): List[String] = {
+    var current: Element = elem
+    val ids = scala.collection.mutable.ListBuffer.empty[String]
+    while (current != null && current.tagName.equals("emu-clause")) {
+      val id = current.attr("id")
+      if (id.nonEmpty) ids.prepend(id) // prepend to have the root first
+      current = current.parent
+    }
+    ids.toList
+  }
 
   given Decoder[AbstractOperationHead] = deriveDecoder
   given Encoder[AbstractOperationHead] = encoderWithType[AbstractOperationHead](
